@@ -1,0 +1,45 @@
+import uuid
+from datetime import datetime
+from sqlalchemy import String, func
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import Mapped, mapped_column
+from app.db.database import Base
+
+
+class User(Base):
+    """
+    SQLAlchemy model representing the 'users' table.
+    Uses modern Type-Annotated Declarative Mapping (Mapped/mapped_column) for SQLAlchemy 2.0.
+    """
+    __tablename__ = "users"
+
+    # UUID primary key generated at DB level (fallback to Python uuid4 on creation)
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+        server_default=func.gen_random_uuid(),
+    )
+
+    # Email field, indexed and enforced unique
+    email: Mapped[str] = mapped_column(
+        String(255),
+        unique=True,
+        nullable=False,
+        index=True,
+    )
+
+    # Secure password storage (hashed)
+    hashed_password: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+    )
+
+    # Auto-populated created timestamp using PostgreSQL's server time
+    created_at: Mapped[datetime] = mapped_column(
+        server_default=func.now(),
+        nullable=False,
+    )
+
+    def __repr__(self) -> str:
+        return f"<User {self.email}>"
