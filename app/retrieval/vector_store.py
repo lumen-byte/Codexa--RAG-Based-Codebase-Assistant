@@ -6,7 +6,7 @@ from typing import Any, Dict, List
 from qdrant_client import QdrantClient, models
 from qdrant_client.http.exceptions import UnexpectedResponse
 
-from app.config import QDRANT_HOST, QDRANT_PORT
+from app.config import QDRANT_HOST, QDRANT_PORT, QDRANT_URL, QDRANT_API_KEY
 
 # Configure logger for tracking database operations
 logger = logging.getLogger(__name__)
@@ -29,11 +29,16 @@ class VectorDBClient:
         self.vector_size = vector_size
         
         try:
-            # Initialize the Qdrant client. 
-            self.client = QdrantClient(host=QDRANT_HOST, port=QDRANT_PORT)
+            # Initialize the Qdrant client.
+            if QDRANT_URL:
+                self.client = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
+                logger.info(f"Connected to Qdrant Cloud at {QDRANT_URL}")
+            else:
+                self.client = QdrantClient(host=QDRANT_HOST, port=QDRANT_PORT)
+                logger.info(f"Connected to local Qdrant at {QDRANT_HOST}:{QDRANT_PORT}")
             self._ensure_collection_exists()
         except Exception as e:
-            logger.error(f"Failed to connect to Qdrant at {QDRANT_HOST}:{QDRANT_PORT} - {e}")
+            logger.error(f"Failed to connect to Qdrant - {e}")
             raise RuntimeError(f"Vector database connection failed: {e}")
 
     def _ensure_collection_exists(self):
