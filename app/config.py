@@ -25,6 +25,7 @@ OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2:1b")
 # --- Groq Cloud LLM (primary — fast & free) ---
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 
-# --- Embeddings (Local vs OpenAI) ---
-EMBEDDING_PROVIDER = os.getenv("EMBEDDING_PROVIDER", "local")  # 'local' or 'openai'
+# --- Embeddings (Local vs OpenAI vs Gemini) ---
+EMBEDDING_PROVIDER = os.getenv("EMBEDDING_PROVIDER", "local")  # 'local', 'openai', or 'gemini'
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
