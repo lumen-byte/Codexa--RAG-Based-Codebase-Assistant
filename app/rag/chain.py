@@ -55,7 +55,7 @@ class RAGChain:
 
         return context, citations
 
-    def _messages(self, question: str, context: str):
+    def _messages(self, question: str, context: str) -> Any:
         """Build the chat messages list for the Groq API."""
         return [
             {
@@ -89,7 +89,8 @@ class RAGChain:
             max_tokens=512,
             temperature=0.2,
         )
-        answer = response.choices[0].message.content.strip()
+        content = response.choices[0].message.content
+        answer = str(content).strip() if content else ""
         logger.info(f"Groq RAG completed in {time.perf_counter()-t0:.2f}s")
         return {"answer": answer, "citations": citations}
 
@@ -116,8 +117,8 @@ class RAGChain:
             )
 
             for chunk in stream:
-                token = chunk.choices[0].delta.content
-                if token:
+                if chunk.choices and chunk.choices[0].delta.content:
+                    token = chunk.choices[0].delta.content
                     yield f'data: {json.dumps({"token": token})}\n\n'
 
         except Exception as e:

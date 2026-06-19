@@ -1,11 +1,11 @@
 import logging
-from typing import List
+from typing import List, Any
 
 from app.config import EMBEDDING_PROVIDER, OPENAI_API_KEY, GEMINI_API_KEY
 
 logger = logging.getLogger(__name__)
 
-# --- Module-level singleton for local model ---
+
 _MODEL_NAME = "all-MiniLM-L6-v2"
 _model_instance = None
 
@@ -57,46 +57,52 @@ class CodeEmbedder:
 
     def __init__(self):
         self.provider = EMBEDDING_PROVIDER.lower()
+        self.openai_client: Any = None
+        self.gemini_client: Any = None
+        self.local_model: Any = None
+
         if self.provider == "openai":
             if not OPENAI_API_KEY:
                 logger.warning(
                     "EMBEDDING_PROVIDER is 'openai' but OPENAI_API_KEY is missing!"
                 )
-            self.client = _get_openai_client()
+            self.openai_client = _get_openai_client()
         elif self.provider == "gemini":
             if not GEMINI_API_KEY:
                 logger.warning(
                     "EMBEDDING_PROVIDER is 'gemini' but GEMINI_API_KEY is missing!"
                 )
-            self.client = _get_gemini_client()
+            self.gemini_client = _get_gemini_client()
         else:
             # Trigger load at startup (warm-up)
-            self.model = _get_local_model()
+            self.local_model = _get_local_model()
 
     def generate_embedding(self, text: str) -> List[float]:
         if not text or not text.strip():
             raise ValueError("Cannot generate embedding for an empty string.")
 
         try:
-            if self.provider == "openai":
-                response = self.client.embeddings.create(
+            if self.provider == "openai" and self.openai_client:
+                response = self.openai_client.embeddings.create(
                     model="text-embedding-3-small",
                     input=text.strip(),
                     dimensions=384,  # Matches the dimension of all-MiniLM-L6-v2
                 )
                 return response.data[0].embedding
-            elif self.provider == "gemini":
+            elif self.provider == "gemini" and self.gemini_client:
                 # Generate embedding with text-embedding-004 and outputDimensionality=384
-                response = self.client.models.embed_content(
+                response = self.gemini_client.models.embed_content(
                     model="text-embedding-004",
                     contents=text.strip(),
                     config={"output_dimensionality": 384},
                 )
                 return response.embeddings[0].values
-            else:
-                return self.model.encode(
+            elif self.local_model:
+                return self.local_model.encode(
                     text.strip(), normalize_embeddings=True
                 ).tolist()
+            else:
+                raise RuntimeError("No embedding provider is properly initialized.")
         except Exception as e:
             logger.error(f"Embedding failed: {e}")
             raise RuntimeError(f"Failed to generate embedding: {e}")
