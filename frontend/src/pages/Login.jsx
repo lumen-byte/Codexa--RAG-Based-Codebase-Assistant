@@ -6,6 +6,7 @@ import { Button } from '../components/common/Button';
 import { Input } from '../components/common/Input';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from '../components/common/Card';
 import { Code2, AlertCircle } from 'lucide-react';
+import { GoogleLogin } from '@react-oauth/google';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -25,10 +26,31 @@ export default function Login() {
       login(data.access_token);
       navigate('/');
     } catch (err) {
-      setErrorMsg(err.response?.data?.detail || 'Login failed. Please check your credentials.');
+      // Show specific detail from backend or default to generic failure
+      const detail = err.response?.data?.detail;
+      setErrorMsg(typeof detail === 'string' ? detail : 'Login failed. Please check your credentials.');
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleGoogleSuccess = async (credentialResponse) => {
+    setIsLoading(true);
+    setErrorMsg('');
+    try {
+      const data = await api.googleLogin(credentialResponse.credential);
+      login(data.access_token);
+      navigate('/');
+    } catch (err) {
+      const detail = err.response?.data?.detail;
+      setErrorMsg(typeof detail === 'string' ? detail : 'Google Login failed.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleGoogleError = () => {
+    setErrorMsg('Google Login failed to initialize.');
   };
 
   return (
@@ -44,6 +66,25 @@ export default function Login() {
           <CardDescription>Enter your credentials to access CodeLens AI</CardDescription>
         </CardHeader>
         <CardContent>
+          <div className="space-y-4 mb-4 flex flex-col items-center">
+            <GoogleLogin
+              onSuccess={handleGoogleSuccess}
+              onError={handleGoogleError}
+              useOneTap
+            />
+          </div>
+          
+          <div className="relative mb-6 mt-4">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-dark-border dark:border-light-border"></span>
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-white dark:bg-dark-bg px-2 text-light-muted dark:text-dark-muted">
+                Or continue with email
+              </span>
+            </div>
+          </div>
+
           <form onSubmit={handleLogin} className="space-y-4">
             {errorMsg && (
               <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/50 flex items-center gap-2 text-red-800 dark:text-red-200 text-sm">

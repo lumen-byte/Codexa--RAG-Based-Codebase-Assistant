@@ -42,6 +42,11 @@ export const api = {
     return response.data;
   },
   
+  googleLogin: async (credential) => {
+    const response = await apiClient.post('/auth/google', { credential });
+    return response.data;
+  },
+  
   ingestRepo: async (repoUrl) => {
     const response = await apiClient.post('/api/v1/ingestion/ingest', { repo_url: repoUrl });
     return response.data;

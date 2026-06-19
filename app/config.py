@@ -8,6 +8,7 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 
 # --- Authentication ---
 JWT_SECRET = os.getenv("JWT_SECRET")
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
 
 # --- GitHub ---
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
