@@ -8,36 +8,41 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(na
 
 logger = logging.getLogger(__name__)
 
-from app.auth.routes import router as auth_router
+from app.api.auth_routes import router as auth_router
 from app.api.ingestion_routes import router as ingestion_router
 from app.api.rag_routes import router as rag_router
+from app.api.repository_routes import router as repository_router
 
-# Create FastAPI application
-app = FastAPI(
-    title="AI Codebase Assistant API",
-    description="RAG-based assistant for understanding GitHub repositories",
-    version="1.0.0"
-)
+# Setup module-level logger for main.py
+logger = logging.getLogger(__name__)
 
 from app.db.database import Base, engine
 from app.db import models
 
-# Create tables in the database if they do not exist
+# Re-create all tables defined in models.py if they don't exist
 Base.metadata.create_all(bind=engine)
 
-# CORS middleware — required for frontend communication
+# Initialize FastAPI application instance
+app = FastAPI(
+    title="RAG-Based Codebase Assistant",
+    description="Ask questions about your codebase, powered by local and cloud LLMs.",
+    version="1.0.0",
+)
+
+# Configure CORS so your React frontend can communicate with this backend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Tighten to specific domain in production
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Register routers
+# Register API routers from different feature modules
 app.include_router(auth_router)
 app.include_router(ingestion_router)
 app.include_router(rag_router)
+app.include_router(repository_router)
 
 
 @app.get("/")

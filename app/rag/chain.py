@@ -55,16 +55,34 @@ class RAGChain:
 
         return context, citations
 
-    def _messages(self, question: str, context: str) -> Any:
+    def _messages(self, question: str, context: str, repo_summary: dict | None = None) -> Any:
         """Build the chat messages list for the Groq API."""
+        
+        system_content = (
+            "You are an expert code analyst. You are given source code snippets "
+            "from a real project. Explain clearly what the code does, mentioning "
+            "specific class names, function names, and libraries. Be concise and accurate."
+        )
+        
+        if repo_summary:
+            architecture = repo_summary.get("architecture_summary", "Unknown architecture")
+            project_type = repo_summary.get("project_type", "Unknown type")
+            language = repo_summary.get("primary_language", "Unknown language")
+            frameworks = ", ".join(repo_summary.get("frameworks", []))
+            
+            system_content += (
+                f"\n\nRepository Context:\n"
+                f"- Project Type: {project_type}\n"
+                f"- Primary Language: {language}\n"
+                f"- Frameworks: {frameworks}\n"
+                f"- Architecture Summary: {architecture}\n"
+                f"Use this global repository context to provide better answers."
+            )
+
         return [
             {
                 "role": "system",
-                "content": (
-                    "You are an expert code analyst. You are given source code snippets "
-                    "from a real project. Explain clearly what the code does, mentioning "
-                    "specific class names, function names, and libraries. Be concise and accurate."
-                ),
+                "content": system_content,
             },
             {
                 "role": "user",
@@ -72,7 +90,7 @@ class RAGChain:
             },
         ]
 
-    def ask_question(self, question: str) -> Dict[str, Any]:
+    def ask_question(self, question: str, repo_summary: dict | None = None) -> Dict[str, Any]:
         """Non-streaming: returns full answer + citations."""
         t0 = time.perf_counter()
         context, citations = self._retrieve(question)
@@ -85,7 +103,7 @@ class RAGChain:
 
         response = self.groq_client.chat.completions.create(
             model=GROQ_MODEL,
-            messages=self._messages(question, context),
+            messages=self._messages(question, context, repo_summary),
             max_tokens=512,
             temperature=0.2,
         )
@@ -94,7 +112,7 @@ class RAGChain:
         logger.info(f"Groq RAG completed in {time.perf_counter()-t0:.2f}s")
         return {"answer": answer, "citations": citations}
 
-    def stream_question(self, question: str) -> Generator[str, None, None]:
+    def stream_question(self, question: str, repo_summary: dict | None = None) -> Generator[str, None, None]:
         """
         SSE streaming via Groq. First token arrives in ~0.3-0.5s.
         Yields: 'data: {"token":"..."}\n\n' per token
@@ -110,7 +128,7 @@ class RAGChain:
         try:
             stream = self.groq_client.chat.completions.create(
                 model=GROQ_MODEL,
-                messages=self._messages(question, context),
+                messages=self._messages(question, context, repo_summary),
                 max_tokens=512,
                 temperature=0.2,
                 stream=True,

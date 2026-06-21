@@ -2,8 +2,9 @@ import logging
 import time
 from typing import Any, Dict, List
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, HttpUrl
+from sqlalchemy.orm import Session
 
 # Import our custom RAG modules
 from app.config import EMBEDDING_BATCH_SIZE
@@ -11,6 +12,9 @@ from app.ingestion.code_chunker import PythonCodeChunker
 from app.ingestion.embedder import CodeEmbedder
 from app.retrieval.vector_store import VectorDBClient
 from app.services.github_fetcher import GithubFetcher
+from app.services.repository_analyzer import RepositoryAnalyzer
+from app.db.database import get_db
+from app.db.models import RepositorySummary
 
 # Configure a module-level logger
 logger = logging.getLogger(__name__)
@@ -33,12 +37,13 @@ class IngestResponse(BaseModel):
     Pydantic schema representing the success response returned to the client.
     """
     message: str
+    repo_id: str
     files_processed: int
     chunks_processed: int
 
 
 @router.post("/ingest", response_model=IngestResponse, status_code=200)
-def ingest_repository(request: IngestRequest) -> IngestResponse:
+def ingest_repository(request: IngestRequest, db: Session = Depends(get_db)) -> IngestResponse:
     """
     Ingests a public GitHub repository into the vector database.
     
@@ -58,17 +63,37 @@ def ingest_repository(request: IngestRequest) -> IngestResponse:
         code_chunker = PythonCodeChunker()
         embedder = CodeEmbedder()
         vector_db = VectorDBClient()
+        analyzer = RepositoryAnalyzer()
         
         # Step 1: Fetch raw files from the GitHub repository
         logger.info("Starting GitHub fetch...")
-        files = github_fetcher.fetch_code_files(repo_url=url_str)
+        fetched_data = github_fetcher.fetch_code_files(repo_url=url_str)
+        files = fetched_data.get("code_files", [])
+        metadata_files = fetched_data.get("metadata_files", [])
         
-        logger.info(f"GitHub fetcher returned {len(files)} files with extensions: {list(set(f['path'].rsplit('.', 1)[-1] for f in files))}")
+        logger.info(f"GitHub fetcher returned {len(files)} code files and {len(metadata_files)} metadata files.")
         
         if not files:
             raise HTTPException(status_code=400, detail="No supported code files found in the given repository. Ensure the repo is public and contains .py, .js, .ts, or other supported code files.")
             
-        logger.info(f"Fetched {len(files)} files successfully.")
+        # Step 1.5: Analyze repository intelligence
+        logger.info("Analyzing repository intelligence from metadata files...")
+        summary_json = analyzer.analyze(metadata_files)
+        
+        # Upsert summary in database
+        existing_summary = db.query(RepositorySummary).filter_by(repo_url=url_str).first()
+        if existing_summary:
+            existing_summary.summary_json = summary_json
+            db.commit()
+            repo_id = str(existing_summary.id)
+            logger.info(f"Updated existing repository summary: {repo_id}")
+        else:
+            new_summary = RepositorySummary(repo_url=url_str, summary_json=summary_json)
+            db.add(new_summary)
+            db.commit()
+            db.refresh(new_summary)
+            repo_id = str(new_summary.id)
+            logger.info(f"Created new repository summary: {repo_id}")
         
         # Step 2: Parse and chunk the code files
         logger.info("Starting code chunking...")
@@ -155,6 +180,7 @@ def ingest_repository(request: IngestRequest) -> IngestResponse:
         # Return cleanly formatted Pydantic response
         return IngestResponse(
             message="Repository indexed successfully",
+            repo_id=repo_id,
             files_processed=len(files),
             chunks_processed=len(all_chunks)
         )

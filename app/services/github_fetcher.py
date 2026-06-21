@@ -13,6 +13,12 @@ SUPPORTED_EXTENSIONS = {
     ".java", ".cpp", ".c", ".go", ".rs"
 }
 
+# Key configuration files used for Repository Intelligence
+METADATA_FILES = {
+    "readme.md", "package.json", "requirements.txt", "pyproject.toml",
+    "dockerfile", "docker-compose.yml", ".env.example", "pom.xml"
+}
+
 class GithubFetcher:
     """
     A utility class to fetch and process code files from public or private GitHub repositories.
@@ -41,13 +47,13 @@ class GithubFetcher:
             
         return match.group(1), match.group(2)
 
-    def fetch_code_files(self, repo_url: str) -> List[Dict[str, str]]:
+    def fetch_code_files(self, repo_url: str) -> Dict[str, List[Dict[str, str]]]:
         """
         Recursively fetches all supported code files from the given GitHub repository.
         Uses depth-first traversal to avoid recursion limits in large repositories.
         
         :param repo_url: The GitHub repository URL.
-        :return: A list of dictionaries containing 'path' and 'content' of the files.
+        :return: A dictionary containing 'code_files' and 'metadata_files'.
         """
         owner, repo_name = self.parse_github_url(repo_url)
         full_name = f"{owner}/{repo_name}"
@@ -59,7 +65,8 @@ class GithubFetcher:
             error_msg = e.data.get("message", str(e)) if hasattr(e, "data") and isinstance(e.data, dict) else str(e)
             raise ValueError(f"Could not access repository {full_name}. Ensure it exists and is accessible. Error: {error_msg}")
 
-        extracted_files = []
+        extracted_code = []
+        extracted_metadata = []
         
         # Iterative depth-first traversal using a stack
         contents_stack = repo.get_contents("")
@@ -78,9 +85,13 @@ class GithubFetcher:
                     contents_stack.append(dir_contents)
             
             elif file_content.type == "file":
+                filename_lower = file_content.name.lower()
                 _, ext = os.path.splitext(file_content.name)
-                # Filter strictly by supported programming language extensions
-                if ext.lower() in SUPPORTED_EXTENSIONS:
+                
+                is_code = ext.lower() in SUPPORTED_EXTENSIONS
+                is_metadata = filename_lower in METADATA_FILES
+                
+                if is_code or is_metadata:
                     try:
                         # decoded_content returns None for files >1MB (GitHub API limitation for large blobs)
                         raw = file_content.decoded_content
@@ -88,13 +99,25 @@ class GithubFetcher:
                             logger.warning(f"Skipping {file_content.path}: file too large, GitHub API returned no inline content.")
                             continue
                         content = raw.decode("utf-8", errors="ignore")
-                        extracted_files.append({
+                        
+                        file_obj = {
                             "path": file_content.path,
                             "content": content
-                        })
+                        }
+                        
+                        if is_code:
+                            extracted_code.append(file_obj)
+                        if is_metadata:
+                            extracted_metadata.append(file_obj)
+                            
                         logger.info(f"Fetched: {file_content.path}")
                     except Exception as e:
                         logger.warning(f"Skipping {file_content.path}: could not decode content. Error: {e}")
 
-        logger.info(f"Total files fetched from {full_name}: {len(extracted_files)}")
-        return extracted_files
+        logger.info(f"Total code files fetched from {full_name}: {len(extracted_code)}")
+        logger.info(f"Total metadata files fetched from {full_name}: {len(extracted_metadata)}")
+        
+        return {
+            "code_files": extracted_code,
+            "metadata_files": extracted_metadata
+        }
