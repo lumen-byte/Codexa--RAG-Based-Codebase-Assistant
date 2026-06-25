@@ -131,6 +131,15 @@ export default function Chat() {
     // Note: We don't reset activeRepoUrl here so the user can continue querying the same repo in a fresh thread if they want.
   };
 
+  const handleReset = () => {
+    setRepoUrl('');
+    setActiveRepoUrl('');
+    setIngestionProgress(0);
+    setIngestStatus('');
+    setIsIngesting(false);
+    startNewChat();
+  };
+
   const loadHistory = (sessionId) => {
     const session = history.find(h => h.id === sessionId);
     if (session) {
@@ -242,6 +251,18 @@ export default function Chat() {
               >
                 {isIngesting ? ingestStatus : 'Ingest'}
               </button>
+
+              {/* Reset Button */}
+              {activeRepoUrl && !isIngesting && (
+                <button
+                  type="button"
+                  onClick={handleReset}
+                  className="ml-2 border border-red-500 dark:border-red-400 text-red-500 dark:text-red-400 px-3 py-1 text-sm hover:bg-red-500 dark:hover:bg-red-400 hover:text-white dark:hover:text-black transition-colors"
+                  title="Reset repository state to ingest a new one"
+                >
+                  Reset
+                </button>
+              )}
 
               {/* Ingestion Status Indicators */}
               {isIngesting && (

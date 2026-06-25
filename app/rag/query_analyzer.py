@@ -27,7 +27,11 @@ class QueryAnalyzer:
 
         system_prompt = f"""You are an advanced query router for a RAG system.
 Given a user's question and a list of available repository modules, you must determine:
-1. The INTENT of the question. Must be exactly one of: "architecture", "interview", "code_explanation", "repo_summary", "feature_explanation", "unknown".
+1. The INTENT of the question. Must be exactly one of: 
+   "repository_overview", "architecture", "data_flow", "code_explanation", 
+   "interview_questions", "feature_explanation", "bug_analysis", "refactoring", 
+   "performance", "security", "file_navigation", "dependency_analysis", 
+   "review_repository", "unknown".
 2. Which modules are MOST likely to contain the answer.
 
 Available modules: {json.dumps(main_modules)}
@@ -36,11 +40,12 @@ Examples:
 - Question: "How does authentication work?" -> Intent: "feature_explanation", Modules: ["auth", "security"]
 - Question: "Where are the database models defined?" -> Intent: "code_explanation", Modules: ["models", "db"]
 - Question: "What is the overall architecture?" -> Intent: "architecture", Modules: []
-- Question: "What are some interview questions for this codebase?" -> Intent: "interview", Modules: []
+- Question: "What are some interview questions for this codebase?" -> Intent: "interview_questions", Modules: []
+- Question: "Can you fix the memory leak in vector_store.py?" -> Intent: "bug_analysis", Modules: ["vector_store"]
 
 Output ONLY a valid JSON object matching this schema:
 {{
-  "intent": "architecture | interview | code_explanation | repo_summary | feature_explanation | unknown",
+  "intent": "intent_string",
   "selected_modules": ["module1", "module2"]
 }}
 """

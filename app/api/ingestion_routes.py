@@ -167,6 +167,11 @@ def ingest_repository(
     """
     url_str = str(request.repo_url).rstrip("/")
     
+    # Fast-fail if the repository doesn't exist or isn't accessible
+    fetcher = GithubFetcher()
+    if not fetcher.validate_repo_exists(url_str):
+        raise HTTPException(status_code=400, detail="Invalid or inaccessible GitHub repository URL.")
+    
     # Prevent duplicate concurrent ingestions
     status_info = ingestion_status_tracker.get(url_str)
     if status_info and status_info["status"] == "processing":

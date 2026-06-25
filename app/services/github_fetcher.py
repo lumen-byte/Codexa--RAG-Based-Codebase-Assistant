@@ -55,6 +55,18 @@ class GithubFetcher:
             
         return match.group(1), match.group(2)
 
+    def validate_repo_exists(self, repo_url: str) -> bool:
+        """
+        Validates if the GitHub repository exists and is accessible.
+        """
+        try:
+            owner, repo_name = self.parse_github_url(repo_url)
+            full_name = f"{owner}/{repo_name}"
+            self.github_client.get_repo(full_name)
+            return True
+        except Exception:
+            return False
+
     def _score_file(self, path: str) -> int:
         """
         Scores a file based on its path to prioritize high-value architectural files.

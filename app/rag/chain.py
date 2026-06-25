@@ -12,7 +12,7 @@ from app.config import GROQ_API_KEY, GROQ_MODEL, LLM_PROVIDER
 
 logger = logging.getLogger(__name__)
 
-MAX_CONTEXT_CHARS = 2000
+MAX_CONTEXT_CHARS = 4000
 
 
 class RAGChain:
@@ -49,10 +49,10 @@ class RAGChain:
         
         # Database Retrieval Phase
         t_db_start = time.perf_counter()
-        results = self.db_client.search_similar(query_embedding=vector, top_k=2, target_modules=target_modules, repo_url=repo_url)
+        results = self.db_client.search_similar(query_embedding=vector, top_k=10, target_modules=target_modules, repo_url=repo_url)
         t_db = time.perf_counter() - t_db_start
         
-        metrics = {
+        metrics: Dict[str, Any] = {
             "embedding_time": t_embed,
             "retrieval_time": t_db
         }
@@ -60,21 +60,80 @@ class RAGChain:
         if not results:
             return None, [], metrics, intent
 
+        # Confidence Scoring
+        try:
+            max_score = max((float(r.get("score") or 0) for r in results), default=0.0)
+            confidence = "High" if max_score > 0.25 else "Low"
+        except Exception:
+            confidence = "Low"
+        metrics["confidence"] = confidence
+
+        # Boosting and Deduplication
+        boosted_results = []
+        for r in results:
+            score = r.get("score", 0)
+            p = r["payload"]
+            fp = p.get("file_path", "").lower()
+            if "readme" in fp or "main.py" in fp or "config.py" in fp:
+                score += 0.1
+            r["score"] = score
+            boosted_results.append(r)
+            
+        boosted_results.sort(key=lambda x: x["score"], reverse=True)
+        
+        # Sort by file and line for merging
+        sorted_for_merge = sorted(boosted_results, key=lambda x: (x["payload"].get("file_path", ""), x["payload"].get("start_line", 0)))
+        
+        merged_chunks = []
+        if sorted_for_merge:
+            current = sorted_for_merge[0]["payload"].copy()
+            current_score = sorted_for_merge[0]["score"]
+            for i in range(1, len(sorted_for_merge)):
+                p = sorted_for_merge[i]["payload"]
+                if p.get("file_path") == current.get("file_path") and p.get("start_line", 0) <= current.get("end_line", 0) + 10:
+                    current["end_line"] = max(current.get("end_line", 0), p.get("end_line", 0))
+                    current["content"] += "\n" + p.get("content", "")
+                    current_score = max(current_score, sorted_for_merge[i]["score"])
+                else:
+                    merged_chunks.append({"score": current_score, "payload": current})
+                    current = p.copy()
+                    current_score = sorted_for_merge[i]["score"]
+            merged_chunks.append({"score": current_score, "payload": current})
+
+        merged_chunks.sort(key=lambda x: x["score"], reverse=True)
+
         context, citations = "", []
-        for i, r in enumerate(results):
+        seen_files = set()
+        seen_chunks = set()
+
+        for i, r in enumerate(merged_chunks):
             p = r["payload"]
             file_path = p.get("file_path", "unknown")
             content = p.get("content", "")
             s, e = p.get("start_line", 0), p.get("end_line", 0)
+            chunk_type = p.get("chunk_type", "chunk")
+            name = p.get("name", "Unknown")
 
             if len(content) > 800:
                 content = content[:800] + "\n...[truncated]"
 
-            snippet = f"[{i+1}] {file_path} L{s}-{e}:\n{content}\n"
+            chunk_id = f"{file_path}_{s}_{e}"
+            if chunk_id in seen_chunks:
+                continue
+            seen_chunks.add(chunk_id)
+
+            snippet = f"[{i+1}] File: {file_path} | Type: {chunk_type} | Name: {name} | Lines: {s}-{e}\n{content}\n\n"
             if len(context) + len(snippet) > MAX_CONTEXT_CHARS:
                 break
             context += snippet
-            citations.append({"file_path": file_path, "start_line": s, "end_line": e})
+            
+            # Keep frontend citations deduplicated by file to avoid UI clutter
+            if file_path not in seen_files:
+                citations.append({"file_path": file_path, "start_line": s, "end_line": e})
+                seen_files.add(file_path)
+
+        # Inject confidence context directly into snippet top
+        context = f"RETRIEVAL CONFIDENCE: {confidence}\n\n" + context
 
         return context, citations, metrics, intent
 
@@ -82,44 +141,101 @@ class RAGChain:
         """Build the chat messages list for the Groq API."""
         
         system_content = (
-            "You are an expert codebase analysis assistant.\n\n"
-            "Rules:\n"
-            "* Answer ONLY using retrieved repository context.\n"
-            "* Never invent code that does not exist.\n"
-            "* If the question is unrelated to the repository, respond:\n"
-            "  'This question is outside the scope of the indexed repository.'\n"
-            "* Always use Markdown.\n"
-            "* Use headings and subheadings.\n"
-            "* Use bullet points where appropriate.\n"
-            "* Keep answers concise and developer-focused.\n"
-            "* Avoid large paragraphs.\n"
-            "* Always end with:\n"
-            "## Sources"
+            "You are an expert, repository-aware AI Codebase Assistant (similar to GitHub Copilot Chat, Cursor, or Sourcegraph Cody).\n\n"
+            "CRITICAL RULES:\n"
+            "1. IDENTIFY BEFORE ANSWERING: Always start by silently identifying the Tech Stack, Framework, Entry Point, and Key Modules based on the repository context.\n"
+            "2. UNCERTAIN LANGUAGE FORBIDDEN: Never use phrases like 'likely', 'probably', 'may be', 'possibly', 'appears to', or 'seems to' unless RETRIEVAL CONFIDENCE is 'Low'. If confidence is high and evidence exists, answer authoritatively.\n"
+            "3. EXPLAIN WHY: Do not just list technologies. Explain WHY they exist (e.g. 'FastAPI: Purpose: async backend. Why: type safety, speed').\n"
+            "4. Answer ONLY using the retrieved repository context. Never hallucinate code.\n"
+            "5. Never generate generic explanations if repository information exists. Prefer explaining the actual implementation over theory.\n"
+            "6. Mention actual files, modules, classes, functions, and technologies used in this repository.\n"
+            "7. Never say 'AI model' (you are powered by Gemini or Groq depending on the deployment).\n"
+            "8. Never say 'database' generically if PostgreSQL or Qdrant is known to be used.\n"
+            "9. Always use professional developer Markdown formatting. Use nested bullets, callout boxes (like > [!NOTE]), horizontal rules, and numbered steps.\n"
+            "10. When returning code, use fenced Markdown with the language specified. Immediately follow the code block with a breakdown of: Purpose, Inputs, Outputs, Execution Flow, Dependencies, and Time Complexity (if applicable).\n"
+            "11. If RETRIEVAL CONFIDENCE is 'Low', explicitly state: 'Repository evidence is insufficient.'\n"
+            "\n"
+            "CITATION RULES:\n"
+            "Always end your answer with a Citations section, sorted by relevance and deduplicated:\n"
+            "## Sources\n"
+            "📄 [file_path]\n"
+            "Function: [Name]\n"
+            "Lines: [start_line]–[end_line]\n"
+            "Why this file is relevant: [Reason]\n\n"
         )
         
-        if intent == "code_explanation":
+        # Inject structural templates based on intent
+        if intent == "repository_overview":
             system_content += (
-                "\n\nFor code explanations, explain:\n"
-                "* Purpose\n"
-                "* Location\n"
-                "* Key Logic\n"
-                "* Dependencies"
+                "You are providing a Repository Overview. Structure your response EXACTLY as follows:\n"
+                "# Repository Overview\n"
+                "## Purpose\n"
+                "## Tech Stack\n"
+                "## Architecture\n"
+                "## Execution Flow\n"
+                "## Important Modules\n"
+                "## Design Decisions\n"
+                "## Scalability\n"
+                "## Performance Optimizations\n"
             )
         elif intent == "architecture":
             system_content += (
-                "\n\nFor architecture questions, explain:\n"
-                "* Components\n"
-                "* Data Flow\n"
-                "* Design Decisions"
+                "You are explaining Architecture. Structure your response EXACTLY as follows:\n"
+                "# Architecture\n"
+                "## Visual Flow\n"
+                "(Create a text-based ASCII flow diagram representing the architecture flow here)\n"
+                "## Components\n"
+                "## Execution Flow\n"
+                "## Technologies Used\n"
+                "## Design Decisions\n"
+                "## Advantages\n"
             )
-        elif intent == "interview":
+        elif intent == "code_explanation":
             system_content += (
-                "\n\nFor interview questions, use:\n"
-                "# Question\n"
-                "## Why Interviewers Ask This\n"
-                "## Ideal Answer\n"
-                "## Follow-up Questions"
+                "You are explaining Code. Structure your response EXACTLY as follows:\n"
+                "# Code Explanation\n"
+                "## File\n"
+                "## Function/Class\n"
+                "## Purpose\n"
+                "## Logic\n"
+                "## Dependencies\n"
+                "## Complexity\n"
             )
+        elif intent == "interview_questions":
+            system_content += (
+                "You are providing Interview Questions. Structure your response EXACTLY as follows:\n"
+                "# Interview Question\n"
+                "## Why Interviewers Ask It\n"
+                "## Ideal Answer\n"
+                "## Follow-up Questions\n"
+                "## Relevant Files\n"
+            )
+        elif intent == "bug_analysis":
+            system_content += (
+                "You are analyzing a Bug. Structure your response EXACTLY as follows:\n"
+                "# Bug Analysis\n"
+                "## Problem\n"
+                "## Root Cause\n"
+                "## Relevant Files\n"
+                "## Suggested Fix\n"
+            )
+        elif intent == "review_repository":
+            system_content += (
+                "You are providing a Developer Review. Structure your response EXACTLY as follows:\n"
+                "# Developer Review\n"
+                "## Architecture\n"
+                "## Strengths\n"
+                "## Weaknesses\n"
+                "## Scalability\n"
+                "## Security\n"
+                "## Performance\n"
+                "## Code Quality\n"
+                "## Maintainability\n"
+                "## Suggested Improvements\n"
+                "## Production Readiness Score\n"
+            )
+        else:
+            system_content += "Structure your response with clear Markdown headings (e.g. # Explanation, ## Details).\n"
         
         if repo_summary:
             architecture = repo_summary.get("architecture_summary", "Unknown architecture")
@@ -127,13 +243,18 @@ class RAGChain:
             language = repo_summary.get("primary_language", "Unknown language")
             frameworks = ", ".join(repo_summary.get("frameworks", []))
             
+            files_indexed = repo_summary.get("total_files", "Unknown")
+            chunks_indexed = repo_summary.get("total_chunks", "Unknown")
+            
             system_content += (
-                f"\n\nRepository Context:\n"
-                f"- Project Type: {project_type}\n"
-                f"- Primary Language: {language}\n"
-                f"- Frameworks: {frameworks}\n"
-                f"- Architecture Summary: {architecture}\n"
-                f"Use this global repository context to provide better answers."
+                f"\n\n--- GLOBAL REPOSITORY CONTEXT ---\n"
+                f"Project Type: {project_type}\n"
+                f"Primary Language: {language}\n"
+                f"Frameworks: {frameworks}\n"
+                f"Architecture Summary: {architecture}\n"
+                f"Files Indexed: {files_indexed}\n"
+                f"Chunks Indexed: {chunks_indexed}\n"
+                f"---------------------------------\n"
             )
 
         return [
@@ -143,7 +264,7 @@ class RAGChain:
             },
             {
                 "role": "user",
-                "content": f"Code:\n{context}\n\nQuestion: {question}",
+                "content": f"RETRIEVED CODE CHUNKS:\n{context}\n\nUSER QUESTION:\n{question}",
             },
         ]
 

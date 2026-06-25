@@ -1,7 +1,7 @@
 import logging
 import os
 import uuid
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from qdrant_client import QdrantClient, models
 from qdrant_client.http.exceptions import UnexpectedResponse
@@ -31,10 +31,10 @@ class VectorDBClient:
         try:
             # Initialize the Qdrant client.
             if QDRANT_URL:
-                self.client = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
+                self.client = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY, timeout=60)
                 logger.info(f"Connected to Qdrant Cloud at {QDRANT_URL}")
             else:
-                self.client = QdrantClient(host=QDRANT_HOST, port=QDRANT_PORT)
+                self.client = QdrantClient(host=QDRANT_HOST, port=QDRANT_PORT, timeout=60)
                 logger.info(f"Connected to local Qdrant at {QDRANT_HOST}:{QDRANT_PORT}")
             self._ensure_collection_exists()
         except Exception as e:
@@ -135,18 +135,21 @@ class VectorDBClient:
 
         try:
             # Upsert inserts new points or updates existing ones with the same ID.
-            # Note: For massive codebases (>10k chunks), consider chunking the `points` array
-            # into smaller batches (e.g., 500 at a time) to prevent network timeouts.
-            self.client.upsert(
-                collection_name=self.collection_name,
-                points=points
-            )
+            # We chunk the `points` array into smaller batches (e.g., 500 at a time)
+            # to prevent network read timeouts on massive codebases.
+            batch_size = 500
+            for i in range(0, len(points), batch_size):
+                batch_points = points[i:i + batch_size]
+                self.client.upsert(
+                    collection_name=self.collection_name,
+                    points=batch_points
+                )
             logger.info(f"Successfully upserted {len(points)} chunks into {self.collection_name}")
         except Exception as e:
             logger.error(f"Failed to upsert points into Qdrant: {e}")
             raise RuntimeError(f"Database insertion failed: {e}")
 
-    def search_similar(self, query_embedding: List[float], top_k: int = 5, target_modules: List[str] = None, repo_url: str = None) -> List[Dict[str, Any]]:
+    def search_similar(self, query_embedding: List[float], top_k: int = 5, target_modules: Optional[List[str]] = None, repo_url: Optional[str] = None) -> List[Dict[str, Any]]:
         """
         Searches the vector database for the codebase chunks most semantically similar 
         to the provided query embedding.
