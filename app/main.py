@@ -21,7 +21,7 @@ from app.api.repository_routes import router as repository_router
 
 from app.db.database import Base, engine
 from app.db import models
-from app.config import FRONTEND_URL, QDRANT_URL, QDRANT_HOST, QDRANT_PORT, LLM_PROVIDER, OLLAMA_BASE_URL
+from app.config import FRONTEND_URL, QDRANT_URL, QDRANT_HOST, QDRANT_PORT, QDRANT_API_KEY, LLM_PROVIDER, OLLAMA_BASE_URL
 
 # Re-create all tables defined in models.py if they don't exist
 Base.metadata.create_all(bind=engine)
@@ -64,6 +64,20 @@ def startup_log():
     logger.info(f"  CORS Origins: {FRONTEND_URL}")
     logger.info(f"  LLM Provider: {LLM_PROVIDER}")
     logger.info(f"  Qdrant URL: {QDRANT_URL or f'http://{QDRANT_HOST}:{QDRANT_PORT}'}")
+    
+    # Qdrant Diagnostic Test
+    try:
+        logger.info("  [Diagnostic] Testing Qdrant authentication...")
+        from qdrant_client import QdrantClient
+        if QDRANT_URL:
+            client = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY, timeout=10)
+        else:
+            client = QdrantClient(host=QDRANT_HOST, port=QDRANT_PORT, timeout=10)
+        collections = client.get_collections()
+        logger.info(f"  [Diagnostic] Qdrant Auth SUCCESS! Found collections: {[c.name for c in collections.collections]}")
+    except Exception as e:
+        logger.error(f"  [Diagnostic] Qdrant Auth FAILED: {e}")
+        
     logger.info("=" * 60)
 
 
@@ -87,7 +101,10 @@ def health():
     # Check Qdrant
     qdrant_target = QDRANT_URL if QDRANT_URL else f"http://{QDRANT_HOST}:{QDRANT_PORT}"
     try:
-        resp = httpx.get(qdrant_target, timeout=3.0)
+        headers = {}
+        if QDRANT_API_KEY:
+            headers["api-key"] = QDRANT_API_KEY
+        resp = httpx.get(qdrant_target, headers=headers, timeout=3.0)
         health_status["services"]["qdrant"] = "connected" if resp.status_code == 200 else "degraded"
     except Exception:
         health_status["services"]["qdrant"] = "unreachable"
