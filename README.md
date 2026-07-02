@@ -83,6 +83,17 @@ GitHub Repository
 
 ---
 
+## Project Highlights
+
+• Handles repositories containing thousands of lines of Python code
+• Syntax-aware chunking using Tree-sitter
+• Real-time ingestion progress
+• Citation-backed responses
+• Batched embedding pipeline
+• Streaming AI responses
+
+---
+
 ## How it Works
 
 1. **Ingestion:** A user inputs a GitHub repository URL. The backend downloads the repository as a ZIP archive in memory, bypassing massive recursive network calls.
