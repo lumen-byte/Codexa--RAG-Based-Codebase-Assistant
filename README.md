@@ -86,10 +86,15 @@ GitHub Repository
 ## Project Highlights
 
 • Handles repositories containing thousands of lines of Python code
+
 • Syntax-aware chunking using Tree-sitter
+
 • Real-time ingestion progress
+
 • Citation-backed responses
+
 • Batched embedding pipeline
+
 • Streaming AI responses
 
 ---
