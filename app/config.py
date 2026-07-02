@@ -8,7 +8,7 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 
 # --- Authentication ---
 CLERK_SECRET_KEY = os.getenv("CLERK_SECRET_KEY", "").strip()
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173,http://127.0.0.1:5173").strip()
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000,http://127.0.0.1:3001,https://codexarag.vercel.app").strip()
 
 # --- GitHub ---
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
