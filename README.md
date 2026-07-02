@@ -10,23 +10,30 @@ Codexa enables developers to understand large Python GitHub repositories through
 ## Demo
 
 Live URL - https://codexarag.vercel.app/
+
 GitHub - https://github.com/lumen-byte/Codexa--RAG-Based-Codebase-Assistant
+
 ---
 
-![Login & Sign Up Page](ScreenShots/screenshot-4-code-snippets.png)
 *Secure authentication using OAuth and JWT.*
 
-![Repository Ingestion in Progress](ScreenShots/screenshot-5-citations.png)
+![Login & Sign Up Page](ScreenShots/screenshot-4-code-snippets.png)
+
 *Real-time streaming feedback during AST parsing and vector embedding (e.g., 46% complete).*
 
-![Chat Interface & History Panel](ScreenShots/screenshot-1-login.png)
+![Repository Ingestion in Progress](ScreenShots/screenshot-5-citations.png)
+
 *Interactive chat with conversational history and repository context.*
 
-![AI Code Explanations](ScreenShots/screenshot-2-ingestion.png) 
+![Chat Interface & History Panel](ScreenShots/screenshot-1-login.png)
+
 *Deep architectural explanations including exact code snippets from your repository.*
 
-![Summary and Citations](ScreenShots/screenshot-3-chat-interface.png)
+![AI Code Explanations](ScreenShots/screenshot-2-ingestion.png) 
+
 *Grounded answers featuring traceable source file citations.*
+
+![Summary and Citations](ScreenShots/screenshot-3-chat-interface.png)
 
 ---
 
