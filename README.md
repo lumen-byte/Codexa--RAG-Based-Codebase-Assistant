@@ -10,6 +10,8 @@ Codexa enables developers to understand large Python GitHub repositories through
 ## Demo
 
 Live URL - https://codexarag.vercel.app/
+GitHub - https://github.com/lumen-byte/Codexa--RAG-Based-Codebase-Assistant
+---
 
 ![Login & Sign Up Page](ScreenShots/screenshot-4-code-snippets.png)
 *Secure authentication using OAuth and JWT.*
