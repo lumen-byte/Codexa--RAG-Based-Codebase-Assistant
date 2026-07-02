@@ -42,9 +42,15 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore
 
 # Configure CORS so your React frontend can communicate with this backend
+allowed_origins = [url.strip() for url in FRONTEND_URL.split(",")]
+# Ensure production Vercel is ALWAYS allowed, even if FRONTEND_URL environment variable is misconfigured on Render
+production_origin = "https://codexarag.vercel.app"
+if production_origin not in allowed_origins:
+    allowed_origins.append(production_origin)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[url.strip() for url in FRONTEND_URL.split(",")],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
