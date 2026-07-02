@@ -3,6 +3,8 @@
 
 Codexa enables developers to understand large Python GitHub repositories through retrieval-augmented generation (RAG), providing grounded answers with precise code citations.
 
+⭐ Built to help developers understand unfamiliar repositories using retrieval-augmented generation (RAG), syntax-aware parsing, and semantic search.
+
 ---
 
 ## Demo
