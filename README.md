@@ -7,19 +7,19 @@ Codexa enables developers to understand large Python GitHub repositories through
 
 ## Demo
 
-![Login & Sign Up Page](path/to/screenshot-1-login.png)
+![Login & Sign Up Page](ScreenShots/screenshot-1-login.png)
 *Secure authentication using OAuth and JWT.*
 
-![Repository Ingestion in Progress](path/to/screenshot-2-ingestion.png)
+![Repository Ingestion in Progress](ScreenShots/screenshot-2-ingestion.png)
 *Real-time streaming feedback during AST parsing and vector embedding (e.g., 46% complete).*
 
-![Chat Interface & History Panel](path/to/screenshot-3-chat-interface.png)
+![Chat Interface & History Panel](ScreenShots/screenshot-3-chat-interface.png)
 *Interactive chat with conversational history and repository context.*
 
-![AI Code Explanations](path/to/screenshot-4-code-snippets.png)
+![AI Code Explanations](ScreenShots/screenshot-4-code-snippets.png)
 *Deep architectural explanations including exact code snippets from your repository.*
 
-![Summary and Citations](path/to/screenshot-5-citations.png)
+![Summary and Citations](ScreenShots/screenshot-5-citations.png)
 *Grounded answers featuring traceable source file citations.*
 
 ---
