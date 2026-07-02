@@ -445,7 +445,7 @@ export default function Chat() {
               </div>
               <input
                 type="text"
-                placeholder="Paste GitHub Repository URL"
+                placeholder="Paste Python GitHub Repository URL"
                 className="bg-transparent px-3 py-2.5 text-sm focus:outline-none w-full text-black dark:text-white placeholder-gray-500 font-medium rounded-xl"
                 value={repoUrl}
                 onChange={(e) => setRepoUrl(e.target.value)}
@@ -596,7 +596,7 @@ export default function Chat() {
                 ) : (
                   <div className="flex flex-col items-center gap-6 mt-4 max-w-md w-full">
                     <p className="text-gray-500 dark:text-gray-400 text-sm leading-relaxed">
-                      Connect any GitHub repository above to start exploring it with AI, or try the interactive demo:
+                      Connect any Python GitHub repository above to start exploring it with AI, or try the interactive demo:
                     </p>
                     <button
                       onClick={handleLoadDemo}

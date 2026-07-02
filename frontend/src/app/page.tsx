@@ -14,7 +14,7 @@ export default function Landing() {
           Codexa
         </h1>
         <p className="text-lg text-gray-600 dark:text-gray-400">
-          Understand your codebase. Ask questions, get answers.
+          Understand your Python codebase. Ask questions, get answers.
         </p>
         <div className="w-full max-w-xs pt-2">
           <button
