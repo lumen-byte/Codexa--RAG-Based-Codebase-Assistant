@@ -255,6 +255,15 @@ export default function Chat() {
     startNewChat();
   };
 
+  const handleLoadDemo = () => {
+    const demoUrl = 'https://github.com/lumen-byte/Codexa--RAG-Based-Codebase-Assistant';
+    setRepoUrl(demoUrl);
+    setActiveRepoUrl(demoUrl);
+    setIngestStatus('Success!');
+    setIngestionProgress(100);
+    setInput('Explain how the RAG pipeline is implemented in Codexa');
+  };
+
   const loadHistory = (sessionId: string) => {
     const session_obj = history.find(h => h.id === sessionId);
     if (session_obj) {
@@ -585,9 +594,32 @@ export default function Chat() {
                     </p>
                   </div>
                 ) : (
-                  <p className="text-gray-500 dark:text-gray-400 max-w-md text-lg">
-                    Connect a GitHub repository above and start exploring your codebase with AI.
-                  </p>
+                  <div className="flex flex-col items-center gap-6 mt-4 max-w-md w-full">
+                    <p className="text-gray-500 dark:text-gray-400 text-sm leading-relaxed">
+                      Connect any GitHub repository above to start exploring it with AI, or try the interactive demo:
+                    </p>
+                    <button
+                      onClick={handleLoadDemo}
+                      className="group w-full p-5 rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#111111] hover:border-indigo-500 dark:hover:border-indigo-400 shadow-md hover:shadow-xl hover:shadow-indigo-500/5 transition-all duration-300 text-left flex items-start gap-4 cursor-pointer"
+                    >
+                      <div className="p-3 rounded-xl bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 group-hover:scale-110 transition-transform shrink-0">
+                        <CodexaLogo size="sm" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-bold text-sm text-gray-900 dark:text-gray-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                            Codexa Codebase (Demo)
+                          </span>
+                          <span className="px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/50 text-[10px] font-bold text-indigo-600 dark:text-indigo-400">
+                            META
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-400 dark:text-gray-500 line-clamp-2 leading-relaxed">
+                          Analyze the codebase of this application itself. Ask how the RAG chain, parser, or layout is built.
+                        </p>
+                      </div>
+                    </button>
+                  </div>
                 )}
               </div>
             ) : (
