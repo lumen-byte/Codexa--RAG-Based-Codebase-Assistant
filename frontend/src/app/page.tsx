@@ -16,10 +16,10 @@ export default function Landing() {
         <p className="text-lg text-gray-600 dark:text-gray-400">
           Understand your codebase. Ask questions, get answers.
         </p>
-        <div>
+        <div className="w-full max-w-xs pt-2">
           <button
             onClick={() => router.push('/sign-in')}
-            className="w-full bg-black dark:bg-white text-white dark:text-black font-medium py-3 px-4 hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors border border-transparent dark:border-white"
+            className="w-full bg-black dark:bg-white text-white dark:text-black font-semibold py-3 px-6 rounded-xl hover:bg-gray-800 dark:hover:bg-gray-200 hover:shadow-lg hover:shadow-indigo-500/10 transition-all duration-200 border border-transparent dark:border-white cursor-pointer"
           >
             Get Started
           </button>
