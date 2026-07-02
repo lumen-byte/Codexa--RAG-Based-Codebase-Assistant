@@ -1,5 +1,5 @@
 # Codexa
-**AI-powered Codebase Analysis Platform**
+**AI-powered RAG platform for understanding Python codebases using semantic retrieval and grounded code generation.**
 
 Codexa enables developers to understand large Python GitHub repositories through retrieval-augmented generation (RAG), providing grounded answers with precise code citations.
 
