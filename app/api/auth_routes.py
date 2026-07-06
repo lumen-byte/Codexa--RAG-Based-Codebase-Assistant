@@ -44,8 +44,11 @@ def register_user(user: UserCreate, db: Session = Depends(get_db)):
 
 @router.post("/login")
 def login_user(user: UserLogin, db: Session = Depends(get_db)):
+    print("Login started")
+    print("Connecting to database")
     statement = select(User).where(User.email == user.email)
     db_user = db.execute(statement).scalar_one_or_none()
+    print("Database connected")
     
     if not db_user or not db_user.hashed_password:
         raise HTTPException(status_code=401, detail="Invalid credentials")
@@ -53,14 +56,18 @@ def login_user(user: UserLogin, db: Session = Depends(get_db)):
     if not verify_password(user.password, db_user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
         
+    print("Generating JWT")
     access_token = create_access_token(data={"sub": str(db_user.id)})
+    print("Login complete")
     return {"access_token": access_token, "token_type": "bearer"}
 
 @router.post("/google")
 def google_login(google_user: GoogleLogin, db: Session = Depends(get_db)):
-    # Find user by email or google_id
+    print("Google callback started")
+    print("Connecting to database")
     statement = select(User).where(User.email == google_user.email)
     db_user = db.execute(statement).scalar_one_or_none()
+    print("Database connected")
     
     if not db_user:
         # Create new OAuth user
@@ -74,7 +81,9 @@ def google_login(google_user: GoogleLogin, db: Session = Depends(get_db)):
         db.commit()
         db.refresh(db_user)
         
+    print("Generating JWT")
     access_token = create_access_token(data={"sub": str(db_user.id)})
+    print("Login complete")
     return {"access_token": access_token, "token_type": "bearer"}
 
 @router.get("/me")

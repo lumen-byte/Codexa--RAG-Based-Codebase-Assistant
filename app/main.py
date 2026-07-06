@@ -1,3 +1,4 @@
+print("FastAPI starting...")
 import logging
 import httpx
 from fastapi import FastAPI, Request
@@ -73,6 +74,15 @@ def startup_log():
     logger.info(f"  LLM Provider: {LLM_PROVIDER}")
     logger.info(f"  Qdrant URL: {QDRANT_URL or f'http://{QDRANT_HOST}:{QDRANT_PORT}'}")
     
+    # Database initialization test
+    try:
+        from sqlalchemy import text
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        print("Database initialized")
+    except Exception as e:
+        print(f"Database initialization failed: {e}")
+        
     # Qdrant Diagnostic Test
     try:
         logger.info("  [Diagnostic] Testing Qdrant authentication...")
@@ -83,10 +93,13 @@ def startup_log():
             client = QdrantClient(host=QDRANT_HOST, port=QDRANT_PORT, timeout=10)
         collections = client.get_collections()
         logger.info(f"  [Diagnostic] Qdrant Auth SUCCESS! Found collections: {[c.name for c in collections.collections]}")
+        print("Qdrant initialized")
     except Exception as e:
         logger.error(f"  [Diagnostic] Qdrant Auth FAILED: {e}")
+        print("Qdrant initialization failed")
         
     logger.info("=" * 60)
+    print("Application ready")
 
 
 @app.get("/")

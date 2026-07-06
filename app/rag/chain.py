@@ -139,7 +139,7 @@ class RAGChain:
 
     def _messages(self, question: str, context: str, repo_summary: dict | None = None, intent: str = "unknown") -> Any:
         """Build the chat messages list for the Groq API."""
-        
+        # It tells the GROQ LLM what to do
         system_content = (
             "You are an expert AI codebase assistant, built to explain code cleanly to senior engineers.\n\n"
             "Your highest priority is to output HIGHLY READABLE, INTERACTIVE, AND DYNAMIC MARKDOWN.\n"
@@ -208,11 +208,12 @@ class RAGChain:
         t_llm_start = time.perf_counter()
         try:
             response = self.groq_client.chat.completions.create(
-                model=GROQ_MODEL,
-                messages=messages,
-                max_tokens=2048,
-                temperature=0.2,
+                model=GROQ_MODEL,      # 1. The Brain
+                messages=messages,     # 2. The Context & Instructions
+                max_tokens=2048,       # 3. The Output Limit
+                temperature=0.2,       # 4. The Creativity && low creativity to make the ai highly factula and ans on point
             )
+
             content = response.choices[0].message.content
             answer = str(content).strip() if content else ""
         except Exception as e:
@@ -262,7 +263,7 @@ class RAGChain:
                 messages=self._messages(question, context, repo_summary, intent),
                 max_tokens=2048,
                 temperature=0.2,
-                stream=True,
+                stream=True,     #true to tell groq to send the ans word by word 
             )
 
             for chunk in stream:
