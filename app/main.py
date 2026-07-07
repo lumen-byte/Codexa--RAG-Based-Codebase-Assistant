@@ -83,20 +83,9 @@ def startup_log():
     except Exception as e:
         print(f"Database initialization failed: {e}")
         
-    # Qdrant Diagnostic Test
-    try:
-        logger.info("  [Diagnostic] Testing Qdrant authentication...")
-        from qdrant_client import QdrantClient
-        if QDRANT_URL:
-            client = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY, timeout=10)
-        else:
-            client = QdrantClient(host=QDRANT_HOST, port=QDRANT_PORT, timeout=10)
-        collections = client.get_collections()
-        logger.info(f"  [Diagnostic] Qdrant Auth SUCCESS! Found collections: {[c.name for c in collections.collections]}")
-        print("Qdrant initialized")
-    except Exception as e:
-        logger.error(f"  [Diagnostic] Qdrant Auth FAILED: {e}")
-        print("Qdrant initialization failed")
+    # Skip Qdrant diagnostic on startup — the first actual query will verify connectivity.
+    # Removing this saves ~5-8 seconds from cold start boot time.
+    logger.info(f"  Qdrant configured at: {QDRANT_URL or f'http://{QDRANT_HOST}:{QDRANT_PORT}'}")
         
     logger.info("=" * 60)
     print("Application ready")

@@ -1,11 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
 import CodexaLogo from '@/components/CodexaLogo';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 export default function SignInPage() {
   const router = useRouter();
@@ -13,6 +15,14 @@ export default function SignInPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Pre-warm the Render backend the moment user lands on sign-in.
+  // Google OAuth takes ~30-45 seconds for the user to complete.
+  // This silent ping triggers a cold start early so the server is
+  // ready BEFORE the login request arrives after OAuth redirect.
+  useEffect(() => {
+    fetch(`${API_URL}/health`, { method: 'GET' }).catch(() => {});
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

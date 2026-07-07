@@ -1,10 +1,19 @@
 'use client';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
 import CodexaLogo from '@/components/CodexaLogo';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
 export default function Landing() {
   const router = useRouter();
+
+  // Pre-warm the Render backend as soon as the user visits the landing page.
+  // This starts the cold-boot process early so it completes before they log in.
+  useEffect(() => {
+    fetch(`${API_URL}/health`, { method: 'GET' }).catch(() => {});
+  }, []);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-white dark:bg-black text-black dark:text-white p-4">
