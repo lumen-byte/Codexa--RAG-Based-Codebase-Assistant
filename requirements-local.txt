@@ -1,0 +1,9 @@
+# requirements-local.txt
+# Install this in addition to requirements.txt when running EMBEDDING_PROVIDER=local.
+# WARNING: sentence-transformers downloads PyTorch (~1GB). Do NOT use in production.
+#
+# Usage:
+#   pip install -r requirements.txt
+#   pip install -r requirements-local.txt
+
+sentence-transformers==5.5.1

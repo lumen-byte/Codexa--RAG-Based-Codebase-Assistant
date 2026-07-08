@@ -31,8 +31,10 @@ PyGithub==2.9.1
 tree-sitter==0.25.2
 tree-sitter-python==0.25.0
 
-# --- Local Embeddings ---
-sentence-transformers==5.5.1
+# --- Local Embeddings (OPTIONAL — only needed when EMBEDDING_PROVIDER=local) ---
+# sentence-transformers pulls in PyTorch (~1GB) and should NOT be installed in production.
+# Install separately with: pip install sentence-transformers
+# Or use requirements-local.txt for local development with local embeddings.
 
 # --- Vector Database ---
 qdrant-client==1.18.0

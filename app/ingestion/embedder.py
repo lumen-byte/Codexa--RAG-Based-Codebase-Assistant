@@ -13,7 +13,16 @@ _model_instance = None
 def _get_local_model():
     global _model_instance
     if _model_instance is None:
-        from sentence_transformers import SentenceTransformer
+        try:
+            from sentence_transformers import SentenceTransformer
+        except ImportError:
+            raise RuntimeError(
+                "EMBEDDING_PROVIDER is set to 'local' but 'sentence-transformers' is not installed.\n"
+                "sentence-transformers requires PyTorch (~1GB) and is excluded from production requirements.\n"
+                "To use local embeddings, run:\n"
+                "    pip install -r requirements-local.txt\n"
+                "Or switch to a cloud provider by setting EMBEDDING_PROVIDER=gemini in your .env file."
+            )
 
         logger.info(f"Loading SentenceTransformer model: {_MODEL_NAME}")
         _model_instance = SentenceTransformer(_MODEL_NAME)
