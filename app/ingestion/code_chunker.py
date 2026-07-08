@@ -2,9 +2,6 @@ import tree_sitter
 import tree_sitter_python
 from typing import Dict, List, Any
 
-# Load the Python grammar for Tree-sitter
-PY_LANGUAGE = tree_sitter.Language(tree_sitter_python.language())
-
 
 class PythonCodeChunker:
     """
@@ -18,8 +15,11 @@ class PythonCodeChunker:
     def __init__(self):
         """
         Initializes the Tree-sitter parser with the Python language grammar.
+        Grammar is loaded lazily here (not at module import time) to reduce
+        startup memory usage on constrained environments like Render free tier.
         """
-        self.parser = tree_sitter.Parser(PY_LANGUAGE)
+        py_language = tree_sitter.Language(tree_sitter_python.language())
+        self.parser = tree_sitter.Parser(py_language)
 
     def chunk_code(self, source_code: str, file_path: str = "unknown.py") -> List[Dict[str, Any]]:
         """
