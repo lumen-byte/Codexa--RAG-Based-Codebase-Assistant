@@ -34,12 +34,22 @@ class AskResponse(BaseModel):
     citations: List[Citation]
 
 
-# Singleton — keeps the embedding model loaded in memory across requests
-try:
-    rag_chain = RAGChain()
-except Exception as e:
-    logger.error(f"CRITICAL: Failed to initialize RAGChain on startup: {e}")
-    rag_chain = None
+# Lazy singleton — RAGChain is created only on the FIRST request, not at server startup.
+# This prevents the Qdrant + embedding model from loading into memory during boot,
+# which was causing Uvicorn worker processes to crash on Render's 512MB free tier.
+_rag_chain: RAGChain | None = None
+
+def _get_rag_chain() -> RAGChain | None:
+    global _rag_chain
+    if _rag_chain is None:
+        try:
+            logger.info("Lazily initializing RAGChain on first request...")
+            _rag_chain = RAGChain()
+            logger.info("RAGChain initialized successfully.")
+        except Exception as e:
+            logger.error(f"CRITICAL: Failed to initialize RAGChain: {e}")
+            return None
+    return _rag_chain
 
 
 def _format_question(question: str, progress: int | None) -> str:
@@ -57,6 +67,7 @@ def ask_question(
     db: Session = Depends(get_db),
 ) -> AskResponse:
     """Non-streaming endpoint — returns full answer + citations."""
+    rag_chain = _get_rag_chain()
     if not rag_chain:
         raise HTTPException(status_code=503, detail="RAG service unavailable.")
         
@@ -91,9 +102,10 @@ def ask_question_stream(
     db: Session = Depends(get_db),
 ):
     """
-    Streaming SSE endpoint — yields tokens in real-time as Ollama generates them.
+    Streaming SSE endpoint — yields tokens in real-time as Groq generates them.
     Frontend connects and receives words immediately instead of waiting.
     """
+    rag_chain = _get_rag_chain()
     if not rag_chain:
         raise HTTPException(status_code=503, detail="RAG service unavailable.")
         
