@@ -25,8 +25,6 @@ from app.db.database import Base, engine
 from app.db import models
 from app.config import FRONTEND_URL, QDRANT_URL, QDRANT_HOST, QDRANT_PORT, QDRANT_API_KEY, LLM_PROVIDER, OLLAMA_BASE_URL
 
-# Re-create all tables defined in models.py if they don't exist
-Base.metadata.create_all(bind=engine)
 
 # --- Rate Limiter ---
 limiter = Limiter(key_func=get_remote_address)
@@ -73,7 +71,16 @@ def startup_log():
     logger.info(f"  CORS Origins: {FRONTEND_URL}")
     logger.info(f"  LLM Provider: {LLM_PROVIDER}")
     logger.info(f"  Qdrant URL: {QDRANT_URL or f'http://{QDRANT_HOST}:{QDRANT_PORT}'}")
-    
+    logger.info(f"  Qdrant configured at: {QDRANT_URL or f'http://{QDRANT_HOST}:{QDRANT_PORT}'}")
+
+    # Run DB table creation here (inside startup) instead of at module import time.
+    # Avoids a blocking PostgreSQL connection during the child process boot sequence.
+    try:
+        Base.metadata.create_all(bind=engine)
+        logger.info("  Database tables verified/created.")
+    except Exception as e:
+        logger.error(f"  Database table creation failed: {e}")
+
     # Database initialization test
     try:
         from sqlalchemy import text
@@ -82,11 +89,7 @@ def startup_log():
         print("Database initialized")
     except Exception as e:
         print(f"Database initialization failed: {e}")
-        
-    # Skip Qdrant diagnostic on startup — the first actual query will verify connectivity.
-    # Removing this saves ~5-8 seconds from cold start boot time.
-    logger.info(f"  Qdrant configured at: {QDRANT_URL or f'http://{QDRANT_HOST}:{QDRANT_PORT}'}")
-        
+
     logger.info("=" * 60)
     print("Application ready")
 
