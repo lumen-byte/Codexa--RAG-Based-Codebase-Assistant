@@ -30,7 +30,7 @@ class Base(DeclarativeBase):
 def get_db():
     """
     FastAPI dependency providing a transactional database session scope.
-    Automatically closes the session after the request finishes.
+    Closes the database session automatically after the request completes.
     """
     db = SessionLocal()
     try:
