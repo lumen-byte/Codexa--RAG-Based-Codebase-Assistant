@@ -9,7 +9,7 @@ if not DATABASE_URL:
 # - pool_pre_ping: connection liveness checks (reconnects dead connections)
 # - pool_size: number of persistent connections to keep in pool
 # - max_overflow: transient connections allowed under heavy load
-# - pool_recycle: recycles connection sockets before DB side timeout
+# - pool_recycle: recycles connection sockets before DB side timeout (refreshes connection pool)
 engine = create_engine(
     DATABASE_URL,
     pool_pre_ping=True,
