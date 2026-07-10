@@ -18,7 +18,7 @@ engine = create_engine(
     pool_recycle=3600,
 )
 
-# Session factory for producing database sessions
+# Session factory for generating database sessions
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
