@@ -22,7 +22,7 @@ engine = create_engine(
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
-# Modern SQLAlchemy 2.0 Base class using DeclarativeBase
+# Modern SQLAlchemy 2.0 Base model class using DeclarativeBase
 class Base(DeclarativeBase):
     pass
 
