@@ -5,7 +5,7 @@ from app.config import DATABASE_URL
 if not DATABASE_URL:
     raise ValueError("DATABASE_URL environment variable is not set")
 
-# Production-grade SQLAlchemy Engine
+# Production-grade SQLAlchemy Database Engine
 # - pool_pre_ping: connection liveness checks (reconnects dead connections)
 # - pool_size: number of persistent connections to keep in pool
 # - max_overflow: transient connections allowed under heavy load
