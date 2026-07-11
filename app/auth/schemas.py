@@ -8,6 +8,7 @@ class UserBase(BaseModel):
     email: EmailStr
 
 
+# Schema used for user registration input validation
 class UserCreate(UserBase):
     password: str
 
