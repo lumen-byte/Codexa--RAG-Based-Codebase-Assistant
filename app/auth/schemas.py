@@ -3,6 +3,7 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, EmailStr
 
 
+# Base user schema containing common attributes
 class UserBase(BaseModel):
     email: EmailStr
 
