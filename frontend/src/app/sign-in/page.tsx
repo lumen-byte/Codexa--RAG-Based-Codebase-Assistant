@@ -17,17 +17,18 @@ export default function SignInPage() {
   const [loading, setLoading] = useState(false);
 
   // Pre-warm the Render backend the moment user lands on sign-in.
-  // Google OAuth takes ~30-45 seconds for the user to complete.
-  // This silent ping triggers a cold start early so the server is
-  // ready BEFORE the login request arrives after OAuth redirect.
+  // We use keepalive: true to prevent the browser from aborting the request if they click login immediately.
   useEffect(() => {
-    fetch(`${API_URL}/health`, { method: 'GET' }).catch(() => {});
+    fetch(`${API_URL}/health`, { method: 'GET', keepalive: true }).catch(() => {});
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
+
+    // Pre-warm immediately on credentials submit in case server is asleep
+    fetch(`${API_URL}/health`, { method: 'GET', keepalive: true }).catch(() => {});
 
     const res = await signIn('credentials', {
       redirect: false,
@@ -45,6 +46,10 @@ export default function SignInPage() {
   };
 
   const handleGoogleSignIn = () => {
+    // Ping the backend immediately before redirecting to Google.
+    // keepalive: true ensures the browser finishes waking up Render
+    // while the user is on the Google accounts redirect page.
+    fetch(`${API_URL}/health`, { method: 'GET', keepalive: true }).catch(() => {});
     signIn('google', { callbackUrl: '/chat' });
   };
 

@@ -12,7 +12,7 @@ export default function Landing() {
   // Pre-warm the Render backend as soon as the user visits the landing page.
   // This starts the cold-boot process early so it completes before they log in.
   useEffect(() => {
-    fetch(`${API_URL}/health`, { method: 'GET' }).catch(() => {});
+    fetch(`${API_URL}/health`, { method: 'GET', keepalive: true }).catch(() => {});
   }, []);
 
   return (
