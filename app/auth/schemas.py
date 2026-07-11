@@ -13,6 +13,7 @@ class UserCreate(UserBase):
     password: str
 
 
+# Schema used for returning user data in API responses
 class UserResponse(UserBase):
     id: uuid.UUID
     created_at: datetime
