@@ -23,7 +23,7 @@ class UserResponse(UserBase):
 
 
 class Token(BaseModel):
-    """Legacy token schema — kept for backward compatibility."""
+    """Legacy token schema - retained for backward compatibility."""
     access_token: str
     token_type: str
 
