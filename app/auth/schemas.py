@@ -29,7 +29,7 @@ class Token(BaseModel):
 
 
 class AuthResponse(BaseModel):
-    """Industry-standard auth response with both access and refresh tokens."""
+    """Industry-standard authentication response containing access and refresh tokens."""
     access_token: str
     refresh_token: str
     token_type: str = "bearer"
