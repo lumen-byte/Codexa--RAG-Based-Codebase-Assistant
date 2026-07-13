@@ -1,9 +1,9 @@
 print("FastAPI starting...")
 import logging
 import httpx
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+
 
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -13,8 +13,8 @@ from slowapi.errors import RateLimitExceeded
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger(__name__)
 
-# Auth router removed (Clerk handles it)
-import uvicorn
+
+
 # Triggering reload to clear threadpool deadlocks
 from app.api.ingestion_routes import router as ingestion_router
 from app.api.rag_routes import router as rag_router
@@ -22,25 +22,25 @@ from app.api.repository_routes import router as repository_router
 from app.api.auth_routes import router as auth_router
 
 from app.db.database import Base, engine
-from app.db import models
+
 from app.config import FRONTEND_URL, QDRANT_URL, QDRANT_HOST, QDRANT_PORT, QDRANT_API_KEY, LLM_PROVIDER, OLLAMA_BASE_URL
 
 
-# --- Rate Limiter ---
+
 limiter = Limiter(key_func=get_remote_address)
 
-# Initialize FastAPI application instance
+
 app = FastAPI(
     title="RAG-Based Codebase Assistant",
     description="Ask questions about your codebase, powered by local and cloud LLMs.",
     version="1.0.0",
 )
 
-# Attach rate limiter to the app
+
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore
 
-# Configure CORS so your React frontend can communicate with this backend
+
 allowed_origins = [url.strip() for url in FRONTEND_URL.split(",")]
 # Ensure production Vercel is ALWAYS allowed, even if FRONTEND_URL environment variable is misconfigured on Render
 production_origin = "https://codexarag.vercel.app"
@@ -55,7 +55,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Register API routers from different feature modules
+
 app.include_router(ingestion_router)
 app.include_router(rag_router)
 app.include_router(repository_router)
@@ -81,7 +81,7 @@ def startup_log():
     except Exception as e:
         logger.error(f"  Database table creation failed: {e}")
 
-    # Database initialization test
+
     try:
         from sqlalchemy import text
         with engine.connect() as conn:
@@ -111,7 +111,7 @@ def health():
     """
     health_status = {"status": "healthy", "services": {}}
 
-    # Check Qdrant
+
     qdrant_target = QDRANT_URL if QDRANT_URL else f"http://{QDRANT_HOST}:{QDRANT_PORT}"
     try:
         headers = {}

@@ -5,9 +5,9 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 from pydantic import BaseModel, HttpUrl
-from sqlalchemy.orm import Session
 
-# Import our custom RAG modules
+
+
 from app.config import EMBEDDING_BATCH_SIZE
 from app.auth.dependencies import get_current_user
 from app.ingestion.code_chunker import PythonCodeChunker
@@ -18,10 +18,10 @@ from app.services.repository_analyzer import RepositoryAnalyzer
 from app.db.database import get_db, SessionLocal
 from app.db.models import RepositorySummary, User
 
-# Configure a module-level logger
+
 logger = logging.getLogger(__name__)
 
-# Initialize the router for this endpoint group
+
 router = APIRouter(
     prefix="/api/v1/ingestion",
     tags=["Ingestion Pipeline"]
@@ -58,7 +58,6 @@ def _run_ingestion_task(url_str: str):
         "repo_id": None
     }
     
-    # Create an independent DB session for this background thread
     db = SessionLocal()
     try:
         github_fetcher = GithubFetcher()
@@ -67,7 +66,6 @@ def _run_ingestion_task(url_str: str):
         vector_db = VectorDBClient()
         analyzer = RepositoryAnalyzer()
         
-        # 1. Fetch
         logger.info(f"Starting GitHub fetch for {url_str}...")
         if ingestion_status_tracker.get(url_str, {}).get("cancel_requested"):
             raise RuntimeError("Ingestion cancelled by user")
@@ -83,7 +81,6 @@ def _run_ingestion_task(url_str: str):
         ingestion_status_tracker[url_str]["stage"] = "Parsing Files"
         ingestion_status_tracker[url_str]["progress"] = 5
         
-        # 2. Analyze & Save
         logger.info("Analyzing repository metadata...")
         if ingestion_status_tracker.get(url_str, {}).get("cancel_requested"):
             raise RuntimeError("Ingestion cancelled by user")
@@ -108,12 +105,11 @@ def _run_ingestion_task(url_str: str):
         ingestion_status_tracker[url_str]["stage"] = "Building AST with Tree-sitter"
         ingestion_status_tracker[url_str]["progress"] = 15
         
-        # 3. Chunk
         logger.info("Chunking code files...")
         if ingestion_status_tracker.get(url_str, {}).get("cancel_requested"):
             raise RuntimeError("Ingestion cancelled by user")
             
-        all_chunks: List[Dict[str, Any]] = []
+        all_chunks = []
         for file_obj in files:
             file_path = file_obj.get("path", "")
             content = file_obj.get("content", "")
@@ -128,8 +124,8 @@ def _run_ingestion_task(url_str: str):
         ingestion_status_tracker[url_str]["stage"] = "Generating Embeddings"
         ingestion_status_tracker[url_str]["progress"] = 25
         
-        # 4. Embed in Batches
         logger.info(f"Starting batched embeddings for {len(all_chunks)} chunks...")
+        
         embeddings = []
         successful_chunks = []
         total_batches = (len(all_chunks) + EMBEDDING_BATCH_SIZE - 1) // EMBEDDING_BATCH_SIZE
@@ -142,7 +138,6 @@ def _run_ingestion_task(url_str: str):
             batch_texts = [chunk["content"] for chunk in batch]
             
             success = False
-            # Exponential backoff for API limits (especially Gemini 15 RPM)
             for attempt in range(5):
                 try:
                     batch_embeddings = embedder.generate_embeddings_batch(batch_texts)
@@ -164,16 +159,13 @@ def _run_ingestion_task(url_str: str):
             if not success:
                 logger.error("Batch permanently failed due to repeated errors.")
                 
-            # Update progress between 25% and 90%
-            current_batch_index = (i // EMBEDDING_BATCH_SIZE) + 1
-            progress_fraction = current_batch_index / total_batches
-            current_progress = 25 + int(progress_fraction * 65)
-            ingestion_status_tracker[url_str]["progress"] = current_progress
+            batch_idx = (i // EMBEDDING_BATCH_SIZE) + 1
+            fraction = batch_idx / total_batches
+            ingestion_status_tracker[url_str]["progress"] = 25 + int(fraction * 65)
 
         if not embeddings:
             raise RuntimeError("Failed to generate embeddings for any chunks.")
             
-        # 5. Insert to Qdrant
         logger.info("Storing chunks in VectorDB...")
         if ingestion_status_tracker.get(url_str, {}).get("cancel_requested"):
             raise RuntimeError("Ingestion cancelled by user")

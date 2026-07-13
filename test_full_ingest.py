@@ -1,4 +1,4 @@
-import asyncio
+
 from dotenv import load_dotenv
 load_dotenv()
 from app.api.ingestion_routes import _run_ingestion_task, ingestion_status_tracker

@@ -1,5 +1,5 @@
 import logging
-import os
+
 import uuid
 from typing import Any, Dict, List, Optional
 
@@ -8,7 +8,7 @@ from qdrant_client.http.exceptions import UnexpectedResponse
 
 from app.config import QDRANT_HOST, QDRANT_PORT, QDRANT_URL, QDRANT_API_KEY
 
-# Configure logger for tracking database operations
+
 logger = logging.getLogger(__name__)
 
 class VectorDBClient:
@@ -29,7 +29,7 @@ class VectorDBClient:
         self.vector_size = vector_size
         
         try:
-            # Initialize the Qdrant client.
+
             if QDRANT_URL:
                 self.client = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY, timeout=60)
                 logger.info(f"Connected to Qdrant Cloud at {QDRANT_URL}")
@@ -47,11 +47,11 @@ class VectorDBClient:
         If it doesn't, it provisions it automatically using Cosine distance configuration.
         """
         try:
-            # Fetch all existing collections from the database
+
             collections_response = self.client.get_collections()
             collection_names = [col.name for col in collections_response.collections]
             
-            # Create collection if absent
+
             if self.collection_name not in collection_names:
                 logger.info(f"Collection '{self.collection_name}' not found. Provisioning it now...")
                 
@@ -92,7 +92,7 @@ class VectorDBClient:
             logger.error(f"Error checking or creating Qdrant collection: {e}")
             raise
 
-    def store_chunks(self, chunks: List[Dict[str, Any]], embeddings: List[List[float]], repo_url: str):
+    def store_chunks(self, chunks: list[dict], embeddings: list[list], repo_url: str):
         """
         Stores parsed code chunks and their corresponding embeddings into the vector database.
         
@@ -108,7 +108,7 @@ class VectorDBClient:
             return
 
         points = []
-        # Zip pairs the chunk metadata with its corresponding vector array
+
         for chunk, embedding in zip(chunks, embeddings):
             # Qdrant requires a unique UUID string or integer for every point
             point_id = str(uuid.uuid4())
@@ -125,7 +125,7 @@ class VectorDBClient:
                 "end_line": chunk.get("end_line", 0)
             }
             
-            # Construct the point object
+
             point = models.PointStruct(
                 id=point_id,
                 vector=embedding,
@@ -134,7 +134,7 @@ class VectorDBClient:
             points.append(point)
 
         try:
-            # Upsert inserts new points or updates existing ones with the same ID.
+
             # We chunk the `points` array into smaller batches (e.g., 500 at a time)
             # to prevent network read timeouts on massive codebases.
             batch_size = 500
@@ -149,7 +149,7 @@ class VectorDBClient:
             logger.error(f"Failed to upsert points into Qdrant: {e}")
             raise RuntimeError(f"Database insertion failed: {e}")
 
-    def search_similar(self, query_embedding: List[float], top_k: int = 5, target_modules: Optional[List[str]] = None, repo_url: Optional[str] = None) -> List[Dict[str, Any]]:
+    def search_similar(self, query_embedding: list[float], top_k: int = 5, target_modules: list[str] | None = None, repo_url: str | None = None) -> list[dict]:
         """
         Searches the vector database for the codebase chunks most semantically similar 
         to the provided query embedding.
@@ -198,7 +198,7 @@ class VectorDBClient:
                 with_payload=True  # We need the payload back to feed to the LLM
             )
             
-            # Format the raw Qdrant response into clean, easily readable dictionaries
+
             formatted_results = []
             for result in search_results.points:
                 formatted_results.append({

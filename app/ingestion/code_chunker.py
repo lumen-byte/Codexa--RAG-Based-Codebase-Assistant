@@ -29,13 +29,13 @@ class PythonCodeChunker:
         :param file_path: The path of the file being parsed (useful for metadata).
         :return: A list of dictionaries representing the extracted chunks.
         """
-        # Convert the string to bytes as Tree-sitter expects byte-encoded input
+
         source_bytes = source_code.encode("utf-8")
         
-        # Generate the Abstract Syntax Tree (AST)
+
         tree = self.parser.parse(source_bytes)
         
-        # Traverse the tree and collect the semantic chunks
+
         chunks = self._traverse_tree(tree.root_node, file_path)
         return chunks
 
@@ -49,11 +49,11 @@ class PythonCodeChunker:
         """
         chunks = []
         
-        # Check if the current node represents a class definition
+
         if node.type == "class_definition":
             chunks.append(self._extract_chunk_metadata(node, "class", file_path))
             
-        # Check if the current node represents a function or method definition
+
         elif node.type == "function_definition":
             chunk_type = "function"
             
@@ -68,7 +68,7 @@ class PythonCodeChunker:
                 
             chunks.append(self._extract_chunk_metadata(node, chunk_type, file_path))
 
-        # Recursively search through all children of this node to catch nested definitions
+
         for child in node.children:
             chunks.extend(self._traverse_tree(child, file_path))
             
@@ -83,11 +83,11 @@ class PythonCodeChunker:
         :param file_path: The associated file path.
         :return: A formatted dictionary matching the required output schema.
         """
-        # Safely extract the name identifier of the class or function
+
         name_node = node.child_by_field_name("name")
         name = name_node.text.decode("utf-8") if name_node and name_node.text else "Unknown"
         
-        # Extract the full source code block of this node
+
         content = node.text.decode("utf-8") if node.text else ""
         
         # Tree-sitter uses 0-indexed rows, so we add 1 for standard 1-indexed line numbering

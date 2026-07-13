@@ -3,17 +3,17 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, EmailStr
 
 
-# Base user schema containing common attributes
+
 class UserBase(BaseModel):
     email: EmailStr
 
 
-# Schema used for user registration input validation
+
 class UserCreate(UserBase):
     password: str
 
 
-# Schema used for returning user data in API responses
+
 class UserResponse(UserBase):
     id: uuid.UUID
     created_at: datetime
@@ -33,7 +33,7 @@ class AuthResponse(BaseModel):
     access_token: str
     refresh_token: str
     token_type: str = "bearer"
-    expires_in: int  # seconds until access token expires
+    expires_in: int
 
 
 class RefreshTokenRequest(BaseModel):
@@ -53,24 +53,3 @@ class MessageResponse(BaseModel):
 class GoogleAuthRequest(BaseModel):
     credential: str
 
-# deployment trigger comment 1
-
-# deployment trigger comment 2
-
-# deployment trigger comment 3
-
-# deployment trigger comment 4
-
-# deployment trigger comment 5
-
-# deployment trigger comment 6
-
-# deployment trigger comment 7
-
-# deployment trigger comment 8
-
-# deployment trigger comment 9
-
-# deployment trigger comment 10
-
-# deployment trigger comment 11

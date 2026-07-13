@@ -77,45 +77,38 @@ class GithubFetcher:
         score = 0
         lower_path = path.lower()
         
-        # High priority: Core app logic, routes, and models
+
         if ("main.py" in lower_path or "app.py" in lower_path or "index.js" in lower_path or
             "/routes/" in lower_path or "/auth/" in lower_path or 
             "/services/" in lower_path or "/controllers/" in lower_path or 
             "/models/" in lower_path or "/api/" in lower_path):
             score += 100
             
-        # Medium priority: Utilities and config
+
         elif "/helpers/" in lower_path or "/utils/" in lower_path or "/config/" in lower_path:
             score += 50
             
-        # Low priority: Tests and docs
+
         elif "/tests/" in lower_path or "/examples/" in lower_path or "/docs/" in lower_path:
             score += 10
             
-        # Default code file
+
         else:
             score += 20
             
         return score
 
-    def fetch_code_files(self, repo_url: str) -> Dict[str, Any]:
+    def fetch_code_files(self, repo_url: str) -> dict:
         """
         Fetches all supported code files from the given GitHub repository.
         Uses the GitHub /zipball endpoint to download the entire repository
         as a ZIP archive streamed to disk, making it extremely fast and memory-safe.
-        
-        :param repo_url: The GitHub repository URL.
-        :return: A dictionary containing 'code_files' and 'metadata_files'.
         """
         owner, repo_name = self.parse_github_url(repo_url)
         logger.info(f"Connecting to GitHub repository: {owner}/{repo_name}")
         
-        # Prepare API headers
-        headers = {}
-        if self.token:
-            headers["Authorization"] = f"token {self.token}"
+        headers = {"Authorization": f"token {self.token}"} if self.token else {}
             
-        # Get the default branch (usually main or master) using PyGithub to ensure we get the right zip
         try:
             repo = self.github_client.get_repo(f"{owner}/{repo_name}")
             default_branch = repo.default_branch
@@ -123,14 +116,10 @@ class GithubFetcher:
             error_msg = e.data.get("message", str(e)) if hasattr(e, "data") and isinstance(e.data, dict) else str(e)
             raise ValueError(f"Could not access repository {owner}/{repo_name}. Ensure it exists and is accessible. Error: {error_msg}")
 
-        # Construct the zipball URL
         zip_url = f"https://api.github.com/repos/{owner}/{repo_name}/zipball/{default_branch}"
         logger.info(f"Downloading ZIP archive from: {zip_url}")
 
-        extracted_code = []
-        extracted_metadata = []
-        
-        # Stream the ZIP download to a temporary file on disk to prevent RAM OOM crashes
+        # Stream ZIP to a temporary file to avoid RAM memory overflow issues
         with tempfile.NamedTemporaryFile(suffix=".zip", delete=False) as tmp_file:
             tmp_path = tmp_file.name
             try:
@@ -140,30 +129,25 @@ class GithubFetcher:
                         if chunk:
                             tmp_file.write(chunk)
             except Exception as e:
-                os.remove(tmp_path)
+                if os.path.exists(tmp_path):
+                    os.remove(tmp_path)
                 raise ValueError(f"Failed to download repository archive: {e}")
 
         logger.info("ZIP download complete. Processing files...")
 
+        extracted_code = []
+        extracted_metadata = []
         try:
             with zipfile.ZipFile(tmp_path) as z:
                 for file_info in z.infolist():
-                    # Skip directories
-                    if file_info.is_dir():
-                        continue
-                        
-                    # Skip files larger than 1MB to save memory and avoid processing massive compiled binaries
-                    if file_info.file_size > 1024 * 1024:
+                    if file_info.is_dir() or file_info.file_size > 1024 * 1024:
                         continue
 
-                    # The first directory in the path is the root folder created by GitHub (e.g. owner-repo-commitHash)
-                    # We strip it out to get the true relative path in the repo
                     parts = file_info.filename.split('/', 1)
                     if len(parts) < 2:
                         continue
                     relative_path = parts[1]
                     
-                    # Immediately bypass blacklisted directories
                     if any(ignored in relative_path.split('/') for ignored in IGNORE_DIRS):
                         continue
                         
@@ -175,7 +159,6 @@ class GithubFetcher:
                     
                     if is_code or is_metadata:
                         try:
-                            # Read file content from the zip
                             content_bytes = z.read(file_info)
                             content = content_bytes.decode("utf-8")
                             
@@ -189,23 +172,17 @@ class GithubFetcher:
                                 extracted_code.append(file_obj)
                             if is_metadata:
                                 extracted_metadata.append(file_obj)
-                                
                         except UnicodeDecodeError:
-                            # Ignore files that are not valid UTF-8 (e.g., binaries that sneak through)
                             pass
                         except Exception as e:
                             logger.warning(f"Skipping {relative_path}: {e}")
         finally:
-            # Clean up the temporary file from disk immediately after processing
             if os.path.exists(tmp_path):
                 os.remove(tmp_path)
 
         total_files_found = len(extracted_code)
-        
-        # Sort extracted code descending by score
         extracted_code.sort(key=lambda x: x["score"], reverse=True)
         
-        # Slice to the top N files
         indexed_code = extracted_code[:MAX_FILES_TO_INDEX]
         files_ignored = max(0, total_files_found - MAX_FILES_TO_INDEX)
         

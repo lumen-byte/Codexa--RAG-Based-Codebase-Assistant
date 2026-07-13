@@ -21,7 +21,7 @@ class User(Base):
         server_default=func.gen_random_uuid(),
     )
 
-    # Email field, indexed and enforced unique
+
     email: Mapped[str] = mapped_column(
         String(255),
         unique=True,
@@ -35,7 +35,7 @@ class User(Base):
         nullable=True,
     )
 
-    # Google ID for OAuth
+
     google_id: Mapped[str] = mapped_column(
         String(255),
         unique=True,

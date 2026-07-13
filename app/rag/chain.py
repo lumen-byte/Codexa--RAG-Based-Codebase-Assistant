@@ -8,7 +8,7 @@ from groq import Groq
 from app.ingestion.embedder import CodeEmbedder
 from app.retrieval.vector_store import VectorDBClient
 from app.rag.query_analyzer import QueryAnalyzer
-from app.config import GROQ_API_KEY, GROQ_MODEL, LLM_PROVIDER
+from app.config import GROQ_API_KEY, GROQ_MODEL
 
 logger = logging.getLogger(__name__)
 
@@ -30,9 +30,7 @@ class RAGChain:
 
     def _retrieve(self, question: str, repo_url: str | None = None, repo_summary: dict | None = None) -> tuple[str | None, list, dict, str]:
         """Embed the question and retrieve top relevant code chunks."""
-        t_start = time.perf_counter()
-        
-        # Intent Detection Phase
+        # 1. Intent Detection & Vector Generation
         target_modules = None
         intent = "unknown"
         if repo_summary:
@@ -42,17 +40,16 @@ class RAGChain:
                 target_modules = analysis.get("selected_modules", [])
                 intent = analysis.get("intent", "unknown")
         
-        # Vector Generation Phase
         t_embed_start = time.perf_counter()
         vector = self.embedder.generate_embedding(question)
         t_embed = time.perf_counter() - t_embed_start
         
-        # Database Retrieval Phase
+        # 2. Database Retrieval
         t_db_start = time.perf_counter()
         results = self.db_client.search_similar(query_embedding=vector, top_k=10, target_modules=target_modules, repo_url=repo_url)
         t_db = time.perf_counter() - t_db_start
         
-        metrics: Dict[str, Any] = {
+        metrics = {
             "embedding_time": t_embed,
             "retrieval_time": t_db
         }
@@ -60,7 +57,7 @@ class RAGChain:
         if not results:
             return None, [], metrics, intent
 
-        # Confidence Scoring
+        # 3. Confidence Scoring
         try:
             max_score = max((float(r.get("score") or 0) for r in results), default=0.0)
             confidence = "High" if max_score > 0.25 else "Low"
@@ -68,21 +65,23 @@ class RAGChain:
             confidence = "Low"
         metrics["confidence"] = confidence
 
-        # Boosting and Deduplication
+        # 4. Boosting Phase
         boosted_results = []
         for r in results:
             score = r.get("score", 0)
             p = r["payload"]
             fp = p.get("file_path", "").lower()
-            if "readme" in fp or "main.py" in fp or "config.py" in fp:
+            if any(k in fp for k in ["readme", "main.py", "config.py"]):
                 score += 0.1
-            r["score"] = score
-            boosted_results.append(r)
+            boosted_results.append({**r, "score": score})
             
         boosted_results.sort(key=lambda x: x["score"], reverse=True)
         
-        # Sort by file and line for merging
-        sorted_for_merge = sorted(boosted_results, key=lambda x: (x["payload"].get("file_path", ""), x["payload"].get("start_line", 0)))
+        # 5. Merge overlapping chunks
+        sorted_for_merge = sorted(
+            boosted_results, 
+            key=lambda x: (x["payload"].get("file_path", ""), x["payload"].get("start_line", 0))
+        )
         
         merged_chunks = []
         if sorted_for_merge:
@@ -90,7 +89,8 @@ class RAGChain:
             current_score = sorted_for_merge[0]["score"]
             for i in range(1, len(sorted_for_merge)):
                 p = sorted_for_merge[i]["payload"]
-                if p.get("file_path") == current.get("file_path") and p.get("start_line", 0) <= current.get("end_line", 0) + 10:
+                if (p.get("file_path") == current.get("file_path") and 
+                    p.get("start_line", 0) <= current.get("end_line", 0) + 10):
                     current["end_line"] = max(current.get("end_line", 0), p.get("end_line", 0))
                     current["content"] += "\n" + p.get("content", "")
                     current_score = max(current_score, sorted_for_merge[i]["score"])
@@ -99,9 +99,10 @@ class RAGChain:
                     current = p.copy()
                     current_score = sorted_for_merge[i]["score"]
             merged_chunks.append({"score": current_score, "payload": current})
-
+            
         merged_chunks.sort(key=lambda x: x["score"], reverse=True)
 
+        # 6. Context Formatting & Citation extraction
         context, citations = "", []
         seen_files = set()
         seen_chunks = set()
@@ -127,19 +128,17 @@ class RAGChain:
                 break
             context += snippet
             
-            # Keep frontend citations deduplicated by file to avoid UI clutter
             if file_path not in seen_files:
                 citations.append({"file_path": file_path, "start_line": s, "end_line": e})
                 seen_files.add(file_path)
 
-        # Inject confidence context directly into snippet top
         context = f"RETRIEVAL CONFIDENCE: {confidence}\n\n" + context
 
         return context, citations, metrics, intent
 
-    def _messages(self, question: str, context: str, repo_summary: dict | None = None, intent: str = "unknown") -> Any:
+    def _messages(self, question: str, context: str, repo_summary: dict | None = None) -> Any:
         """Build the chat messages list for the Groq API."""
-        # It tells the GROQ LLM what to do
+
         system_content = (
             "You are an expert AI codebase assistant, built to explain code cleanly to senior engineers.\n\n"
             "Your highest priority is to output HIGHLY READABLE, INTERACTIVE, AND DYNAMIC MARKDOWN.\n"
@@ -202,16 +201,16 @@ class RAGChain:
             }
 
         t_prompt_start = time.perf_counter()
-        messages = self._messages(question, context, repo_summary, intent)
+        messages = self._messages(question, context, repo_summary)
         t_prompt = time.perf_counter() - t_prompt_start
 
         t_llm_start = time.perf_counter()
         try:
             response = self.groq_client.chat.completions.create(
-                model=GROQ_MODEL,      # 1. The Brain
-                messages=messages,     # 2. The Context & Instructions
-                max_tokens=2048,       # 3. The Output Limit
-                temperature=0.2,       # 4. The Creativity && low creativity to make the ai highly factula and ans on point
+                model=GROQ_MODEL,
+                messages=messages,
+                max_tokens=2048,
+                temperature=0.2,       # Low creativity to make the AI highly factual and on-point.
             )
 
             content = response.choices[0].message.content
@@ -260,10 +259,10 @@ class RAGChain:
         try:
             stream = self.groq_client.chat.completions.create(
                 model=GROQ_MODEL,
-                messages=self._messages(question, context, repo_summary, intent),
+                messages=self._messages(question, context, repo_summary),
                 max_tokens=2048,
                 temperature=0.2,
-                stream=True,     #true to tell groq to send the ans word by word 
+                stream=True,
             )
 
             for chunk in stream:

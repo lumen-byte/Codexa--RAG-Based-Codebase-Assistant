@@ -30,7 +30,7 @@ def _get_local_model():
     return _model_instance
 
 
-# ---Module-level singleton for OpenAI client---
+
 _openai_client = None
 
 
@@ -44,7 +44,7 @@ def _get_openai_client():
     return _openai_client
 
 
-# --- Module-level singleton for Gemini client ---
+
 _gemini_client = None
 
 
@@ -83,7 +83,7 @@ class CodeEmbedder:
                 )
             self.gemini_client = _get_gemini_client()
         else:
-            # Trigger load at startup (warm-up)
+
             self.local_model = _get_local_model()
 
     def generate_embedding(self, text: str) -> List[float]:
@@ -110,7 +110,7 @@ class CodeEmbedder:
             
             elif self.provider == "gemini" and self.gemini_client:
                 from google.genai import types
-                # Generate embeddings in batch
+
                 response = self.gemini_client.models.embed_content(
                     model="gemini-embedding-2",
                     contents=valid_texts,

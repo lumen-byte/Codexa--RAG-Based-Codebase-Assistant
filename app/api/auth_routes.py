@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, EmailStr
-from datetime import timedelta
+
 import logging
 
 from app.db.database import get_db
@@ -70,7 +70,7 @@ def google_login(google_user: GoogleLogin, db: Session = Depends(get_db)):
     print("Database connected")
     
     if not db_user:
-        # Create new OAuth user
+
         db_user = User(email=google_user.email, google_id=google_user.google_id)
         db.add(db_user)
         db.commit()

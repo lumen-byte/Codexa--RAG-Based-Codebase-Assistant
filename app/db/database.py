@@ -18,11 +18,11 @@ engine = create_engine(
     pool_recycle=3600,
 )
 
-# Session factory for generating database sessions
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
-# Modern SQLAlchemy 2.0 Base model class using DeclarativeBase
+
 class Base(DeclarativeBase):
     pass
 
