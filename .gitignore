@@ -8,6 +8,16 @@ __pycache__/
 *.pyo
 venv/
 .venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Node/Frontend
+node_modules/
+.next/
+
+# Logs
+*.log
 
 # IDE
 .vscode/
